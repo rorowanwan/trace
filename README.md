@@ -46,6 +46,43 @@ Add to your `~/.config/fish/config.fish` or equivalent to persist.
 3. **JS Analysis** — fetches scripts, scans for API endpoints, secrets, interesting comments
 4. **LLM Summary** — feeds all findings to Claude, outputs prioritized attack vector list
 
+## Sample Output
+
+```
+$ trace http://target.ctf
+
+┌─────────────────────────┐
+│ Trace — http://target.ctf │
+└─────────────────────────┘
+
+▸ Fingerprint
+  status_code: 200
+  server: Apache/2.4.41
+  powered_by: PHP/7.4.3
+  detected_tech: ['PHP', 'WordPress']
+  cookies: [{'name': 'PHPSESSID', 'value': 'abc123'}]
+  forms: [{'action': '/login.php', 'method': 'POST', 'inputs': [...]}]
+  comments: ['<!-- TODO: remove debug mode before prod -->']
+
+▸ Discovered Endpoints
+  • url: http://target.ctf/admin  status: 403
+  • url: http://target.ctf/.git  status: 200
+  • url: http://target.ctf/backup.zip  status: 200
+
+▸ JS Analysis
+  • source: /static/app.js
+    api_endpoints: ['/api/v1/users', '/api/v1/flag']
+    secrets: ['Authorization: Bearer eyJhbG...']
+
+╔══════════════════ LLM Summary ══════════════════╗
+  • .git directory exposed — run git-dumper to recover source
+  • backup.zip accessible — likely contains source or credentials  
+  • Bearer token found in JS — try authenticated requests to /api/v1/flag
+  • PHP/7.4.3 is EOL — check for known CVEs
+  • Login form at /login.php — try SQLi and default credentials
+╚═════════════════════════════════════════════════╝
+```
+
 ## Requirements
 
 - Python 3.11+
