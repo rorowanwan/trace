@@ -32,15 +32,15 @@ def _get_wordlist(custom: Optional[str] = None) -> Optional[str]:
     return None
 
 
-def discover(url: str, wordlist: Optional[str] = None) -> list[dict]:
+def discover(url: str, wordlist: Optional[str] = None, delay: float = 0.0, cookies: dict = {}, headers: dict = {}) -> list[dict]:
     url = url.rstrip("/")
 
     if shutil.which("ffuf"):
-        return _run_ffuf(url, wordlist)
-    return _run_fallback(url)
+        return _run_ffuf(url, wordlist, delay=delay)
+    return _run_fallback(url, delay=delay, cookies=cookies, headers=headers)
 
 
-def _run_ffuf(url: str, wordlist: Optional[str] = None) -> list[dict]:
+def _run_ffuf(url: str, wordlist: Optional[str] = None, delay: float = 0.0) -> list[dict]:
     wl = _get_wordlist(wordlist)
     results = []
 
@@ -57,10 +57,11 @@ def _run_ffuf(url: str, wordlist: Optional[str] = None) -> list[dict]:
                 "-mc", "200,201,204,301,302,307,401,403,405",
                 "-t", "50",
                 "-timeout", "5",
-                "-s",  # silent
+                "-s",
             ]
+            if delay > 0:
+                cmd += ["-p", str(delay)]
         else:
-            # write fallback wordlist to temp file
             with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as wf:
                 wf.write("\n".join(FALLBACK_WORDLIST))
                 wl_tmp = wf.name
@@ -74,6 +75,8 @@ def _run_ffuf(url: str, wordlist: Optional[str] = None) -> list[dict]:
                 "-timeout", "5",
                 "-s",
             ]
+            if delay > 0:
+                cmd += ["-p", str(delay)]
 
         subprocess.run(cmd, capture_output=True, timeout=60)
 
@@ -98,11 +101,12 @@ def _run_ffuf(url: str, wordlist: Optional[str] = None) -> list[dict]:
     return results
 
 
-def _run_fallback(url: str) -> list[dict]:
+def _run_fallback(url: str, delay: float = 0.0, cookies: dict = {}, headers: dict = {}) -> list[dict]:
     """Pure httpx fallback when ffuf isn't available."""
     import httpx
+    import time
     results = []
-    with httpx.Client(follow_redirects=False, timeout=5, verify=False) as client:
+    with httpx.Client(follow_redirects=False, timeout=5, verify=False, cookies=cookies, headers=headers) as client:
         for word in FALLBACK_WORDLIST:
             target = f"{url}/{word}"
             try:
@@ -115,4 +119,6 @@ def _run_fallback(url: str) -> list[dict]:
                     })
             except Exception:
                 continue
+            if delay > 0:
+                time.sleep(delay)
     return results

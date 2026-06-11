@@ -18,7 +18,7 @@ TECH_SIGNATURES = {
 }
 
 
-def fingerprint(url: str) -> dict[str, Any]:
+def fingerprint(url: str, cookies: dict = {}, headers: dict = {}) -> dict[str, Any]:
     findings: dict[str, Any] = {
         "status_code": None,
         "server": None,
@@ -33,7 +33,7 @@ def fingerprint(url: str) -> dict[str, Any]:
     }
 
     try:
-        resp = httpx.get(url, follow_redirects=True, timeout=10, verify=False)
+        resp = httpx.get(url, follow_redirects=True, timeout=10, verify=False, cookies=cookies, headers=headers)
     except httpx.RequestError as e:
         findings["error"] = str(e)
         return findings

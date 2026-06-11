@@ -14,19 +14,19 @@ pip install -e . --break-system-packages
 
 ```bash
 # full scan
-trace scan http://target.ctf
+trace http://target.ctf
 
 # skip slow discovery step
-trace scan http://target.ctf --no-discovery
+trace http://target.ctf --no-discovery
 
 # custom wordlist
-trace scan http://target.ctf -w /usr/share/seclists/Discovery/Web-Content/big.txt
+trace http://target.ctf -w /usr/share/seclists/Discovery/Web-Content/big.txt
 
 # json output (pipe to jq etc)
-trace scan http://target.ctf --json | jq .fingerprint
+trace http://target.ctf --json | jq .fingerprint
 
 # no llm (offline mode)
-trace scan http://target.ctf --no-llm
+trace http://target.ctf --no-llm
 ```
 
 ## Setup
@@ -38,6 +38,8 @@ export GEMINI_API_KEY=your-key-here...
 ```
 
 Add to your `~/.config/fish/config.fish` or equivalent to persist.
+
+Anthropic is also supported as a fallback if `ANTHROPIC_API_KEY` is set instead.
 
 ## Pipeline
 
@@ -87,4 +89,4 @@ $ trace http://target.ctf
 
 - Python 3.11+
 - ffuf (optional but recommended)
-- `ANTHROPIC_API_KEY` env var (optional, skipped if not set)
+- `GEMINI_API_KEY` or `ANTHROPIC_API_KEY` env var (optional, skipped if not set)

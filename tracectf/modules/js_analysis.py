@@ -31,12 +31,12 @@ PATTERNS = {
 }
 
 
-def analyze_js(base_url: str, script_urls: list[str]) -> list[dict]:
+def analyze_js(base_url: str, script_urls: list[str], cookies: dict = {}, headers: dict = {}) -> list[dict]:
     findings = []
 
     # also check inline scripts on the page
     try:
-        resp = httpx.get(base_url, follow_redirects=True, timeout=10, verify=False)
+        resp = httpx.get(base_url, follow_redirects=True, timeout=10, verify=False, cookies=cookies, headers=headers)
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(resp.text, "html.parser")
         inline_scripts = [tag.string for tag in soup.find_all("script") if not tag.get("src") and tag.string]
@@ -46,7 +46,7 @@ def analyze_js(base_url: str, script_urls: list[str]) -> list[dict]:
     sources = []
     for url in script_urls[:10]:  # cap at 10 external scripts
         try:
-            r = httpx.get(url, follow_redirects=True, timeout=8, verify=False)
+            r = httpx.get(url, follow_redirects=True, timeout=8, verify=False, cookies=cookies, headers=headers)
             if r.status_code == 200:
                 sources.append({"url": url, "content": r.text})
         except Exception:
