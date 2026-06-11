@@ -1,6 +1,5 @@
 import os
 import json
-import anthropic
 
 
 SYSTEM_PROMPT = """You are an expert CTF player analyzing web recon results. 
@@ -10,15 +9,8 @@ Focus on what's unusual, misconfigured, or exploitable — not just what's prese
 Format your response as a short bulleted list of actionable leads, max 8 bullets."""
 
 
-def summarize(results: dict) -> str:
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        return "[no ANTHROPIC_API_KEY set — skipping LLM summary]"
-
-    client = anthropic.Anthropic(api_key=api_key)
-
-    # build a condensed version of results for the prompt
-    condensed = {
+def _build_condensed(results: dict) -> dict:
+    return {
         "url": results.get("url"),
         "fingerprint": {
             "status": results["fingerprint"].get("status_code"),
@@ -32,20 +24,48 @@ def summarize(results: dict) -> str:
         },
         "discovered_endpoints": [
             {"url": d.get("url"), "status": d.get("status")}
-            for d in results.get("discovery", [])[:30]  # cap to avoid token overflow
+            for d in results.get("discovery", [])[:30]
         ],
         "js_findings": results.get("js_analysis", []),
     }
 
+
+def _summarize_gemini(condensed: dict, api_key: str) -> str:
+    from google import genai
+    client = genai.Client(api_key=api_key)
+    prompt = f"{SYSTEM_PROMPT}\n\nHere are the recon results for a CTF web challenge:\n\n{json.dumps(condensed, indent=2)}\n\nWhat are the most promising attack vectors and leads?"
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+    )
+    return response.text
+
+
+def _summarize_anthropic(condensed: dict, api_key: str) -> str:
+    import anthropic
+    client = anthropic.Anthropic(api_key=api_key)
     prompt = f"Here are the recon results for a CTF web challenge:\n\n{json.dumps(condensed, indent=2)}\n\nWhat are the most promising attack vectors and leads?"
+    message = client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=600,
+        system=SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return message.content[0].text
+
+
+def summarize(results: dict) -> str:
+    condensed = _build_condensed(results)
+
+    gemini_key = os.environ.get("GEMINI_API_KEY")
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
 
     try:
-        message = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=600,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return message.content[0].text
+        if gemini_key:
+            return _summarize_gemini(condensed, gemini_key)
+        elif anthropic_key:
+            return _summarize_anthropic(condensed, anthropic_key)
+        else:
+            return "[no LLM API key set — export GEMINI_API_KEY or ANTHROPIC_API_KEY]"
     except Exception as e:
         return f"[LLM error: {e}]"
