@@ -5,7 +5,7 @@ CTF-scoped web recon pipeline. Fingerprint, discover, analyze, summarize.
 ## Install
 
 ```bash
-git clone https://github.com/yourname/trace
+git clone https://github.com/rorowanwan/trace
 cd trace
 pip install -e . --break-system-packages
 ```
@@ -31,10 +31,10 @@ trace scan http://target.ctf --no-llm
 
 ## Setup
 
-Set your Anthropic API key for LLM summarization:
+Set your Gemini API key for LLM summarization:
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...
+export GEMINI_API_KEY=your-key-here...
 ```
 
 Add to your `~/.config/fish/config.fish` or equivalent to persist.
