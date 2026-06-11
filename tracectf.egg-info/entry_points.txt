@@ -1,0 +1,2 @@
+[console_scripts]
+trace = tracectf.cli:app
