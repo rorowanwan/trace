@@ -26,18 +26,25 @@ def _build_condensed(results: dict) -> dict:
             {"url": d.get("url"), "status": d.get("status")}
             for d in results.get("discovery", [])[:30]
         ],
-        "js_findings": results.get("js_analysis", []),
+        "js_findings": [
+            {
+                "source": f.get("source"),
+                "hits": {k: v[:5] for k, v in f.get("hits", {}).items()}
+            }
+            for f in results.get("js_analysis", [])[:10]
+        ],
     }
 
 
 def _summarize_gemini(condensed: dict, api_key: str) -> str:
-    from google import genai
-    client = genai.Client(api_key=api_key)
-    prompt = f"{SYSTEM_PROMPT}\n\nHere are the recon results for a CTF web challenge:\n\n{json.dumps(condensed, indent=2)}\n\nWhat are the most promising attack vectors and leads?"
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt,
+    import google.generativeai as genai
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel(
+        model_name="gemini-2.0-flash",
+        system_instruction=SYSTEM_PROMPT,
     )
+    prompt = f"Here are the recon results for a CTF web challenge:\n\n{json.dumps(condensed, indent=2)}\n\nWhat are the most promising attack vectors and leads?"
+    response = model.generate_content(prompt)
     return response.text
 
 
@@ -66,6 +73,6 @@ def summarize(results: dict) -> str:
         elif anthropic_key:
             return _summarize_anthropic(condensed, anthropic_key)
         else:
-            return "[no LLM API key set — export GEMINI_API_KEY or ANTHROPIC_API_KEY]"
+            return "[no LLM API key set — export GEMINI_API_KEY or ANTHROPIC_API_KEY to enable summaries]"
     except Exception as e:
         return f"[LLM error: {e}]"

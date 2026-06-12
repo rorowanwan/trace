@@ -18,7 +18,7 @@ TECH_SIGNATURES = {
 }
 
 
-def fingerprint(url: str, cookies: dict = {}, headers: dict = {}) -> dict[str, Any]:
+def fingerprint(url: str, cookies: dict = {}, headers: dict = {}, delay: float = 0.0) -> dict[str, Any]:
     findings: dict[str, Any] = {
         "status_code": None,
         "server": None,
@@ -33,18 +33,20 @@ def fingerprint(url: str, cookies: dict = {}, headers: dict = {}) -> dict[str, A
     }
 
     try:
+        if delay > 0:
+            import time; time.sleep(delay)
         resp = httpx.get(url, follow_redirects=True, timeout=10, verify=False, cookies=cookies, headers=headers)
     except httpx.RequestError as e:
         findings["error"] = str(e)
         return findings
 
     findings["status_code"] = resp.status_code
-    headers = dict(resp.headers)
+    resp_headers = dict(resp.headers)
 
     # basic headers
-    findings["server"] = headers.get("server")
-    findings["powered_by"] = headers.get("x-powered-by")
-    findings["content_type"] = headers.get("content-type")
+    findings["server"] = resp_headers.get("server")
+    findings["powered_by"] = resp_headers.get("x-powered-by")
+    findings["content_type"] = resp_headers.get("content-type")
 
     # interesting security headers (or lack thereof)
     interesting = [
@@ -54,8 +56,8 @@ def fingerprint(url: str, cookies: dict = {}, headers: dict = {}) -> dict[str, A
         "cf-ray", "x-cache", "via",
     ]
     for h in interesting:
-        if h in headers:
-            findings["interesting_headers"][h] = headers[h]
+        if h in resp_headers:
+            findings["interesting_headers"][h] = resp_headers[h]
 
     # cookies
     for name, val in resp.cookies.items():
@@ -90,7 +92,7 @@ def fingerprint(url: str, cookies: dict = {}, headers: dict = {}) -> dict[str, A
 
     # tech detection
     body = resp.text
-    all_headers_str = str(headers)
+    all_headers_str = str(resp_headers)
     for tech, sigs in TECH_SIGNATURES.items():
         for sig in sigs:
             if sig.lower() in body.lower() or sig.lower() in all_headers_str.lower():

@@ -31,11 +31,14 @@ PATTERNS = {
 }
 
 
-def analyze_js(base_url: str, script_urls: list[str], cookies: dict = {}, headers: dict = {}) -> list[dict]:
+def analyze_js(base_url: str, script_urls: list[str], cookies: dict = {}, headers: dict = {}, delay: float = 0.0) -> list[dict]:
     findings = []
+    import time
 
     # also check inline scripts on the page
     try:
+        if delay > 0:
+            time.sleep(delay)
         resp = httpx.get(base_url, follow_redirects=True, timeout=10, verify=False, cookies=cookies, headers=headers)
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(resp.text, "html.parser")
@@ -46,6 +49,8 @@ def analyze_js(base_url: str, script_urls: list[str], cookies: dict = {}, header
     sources = []
     for url in script_urls[:10]:  # cap at 10 external scripts
         try:
+            if delay > 0:
+                time.sleep(delay)
             r = httpx.get(url, follow_redirects=True, timeout=8, verify=False, cookies=cookies, headers=headers)
             if r.status_code == 200:
                 sources.append({"url": url, "content": r.text})

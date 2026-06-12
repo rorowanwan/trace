@@ -36,47 +36,46 @@ def discover(url: str, wordlist: Optional[str] = None, delay: float = 0.0, cooki
     url = url.rstrip("/")
 
     if shutil.which("ffuf"):
-        return _run_ffuf(url, wordlist, delay=delay)
+        return _run_ffuf(url, wordlist, delay=delay, cookies=cookies, headers=headers)
     return _run_fallback(url, delay=delay, cookies=cookies, headers=headers)
 
 
-def _run_ffuf(url: str, wordlist: Optional[str] = None, delay: float = 0.0) -> list[dict]:
+def _build_ffuf_header_args(cookies: dict, headers: dict) -> list[str]:
+    args = []
+    for k, v in headers.items():
+        args += ["-H", f"{k}: {v}"]
+    if cookies:
+        cookie_str = "; ".join(f"{k}={v}" for k, v in cookies.items())
+        args += ["-H", f"Cookie: {cookie_str}"]
+    return args
+
+
+def _run_ffuf(url: str, wordlist: Optional[str] = None, delay: float = 0.0, cookies: dict = {}, headers: dict = {}) -> list[dict]:
     wl = _get_wordlist(wordlist)
     results = []
+    header_args = _build_ffuf_header_args(cookies, headers)
 
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tmp:
         tmp_path = tmp.name
 
     try:
+        base_cmd = [
+            "-o", tmp_path,
+            "-of", "json",
+            "-mc", "200,201,204,301,302,307,401,403,405",
+            "-timeout", "5",
+            "-s",
+        ] + header_args
+        if delay > 0:
+            base_cmd += ["-p", str(delay)]
+
         if wl:
-            cmd = [
-                "ffuf", "-u", f"{url}/FUZZ",
-                "-w", wl,
-                "-o", tmp_path,
-                "-of", "json",
-                "-mc", "200,201,204,301,302,307,401,403,405",
-                "-t", "50",
-                "-timeout", "5",
-                "-s",
-            ]
-            if delay > 0:
-                cmd += ["-p", str(delay)]
+            cmd = ["ffuf", "-u", f"{url}/FUZZ", "-w", wl, "-t", "50"] + base_cmd
         else:
             with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as wf:
                 wf.write("\n".join(FALLBACK_WORDLIST))
                 wl_tmp = wf.name
-            cmd = [
-                "ffuf", "-u", f"{url}/FUZZ",
-                "-w", wl_tmp,
-                "-o", tmp_path,
-                "-of", "json",
-                "-mc", "200,201,204,301,302,307,401,403,405",
-                "-t", "20",
-                "-timeout", "5",
-                "-s",
-            ]
-            if delay > 0:
-                cmd += ["-p", str(delay)]
+            cmd = ["ffuf", "-u", f"{url}/FUZZ", "-w", wl_tmp, "-t", "20"] + base_cmd
 
         subprocess.run(cmd, capture_output=True, timeout=60)
 

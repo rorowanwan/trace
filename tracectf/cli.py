@@ -28,7 +28,7 @@ def scan(
     skip_discovery: bool = typer.Option(False, "--no-discovery", help="Skip dir/endpoint discovery"),
     wordlist: Optional[str] = typer.Option(None, "--wordlist", "-w", help="Custom wordlist for discovery"),
     no_llm: bool = typer.Option(False, "--no-llm", help="Skip LLM summarization"),
-    delay: float = typer.Option(0.0, "--delay", "-d", help="Delay in seconds between requests (be polite to shared CTF infra)"),
+    delay: float = typer.Option(0.0, "--delay", "-D", help="Delay in seconds between requests (polite mode for shared CTF infra)"),
     cookie: Optional[List[str]] = typer.Option(None, "--cookie", "-c", help="Cookie(s) to inject, e.g. -c 'session=abc123'"),
     header: Optional[List[str]] = typer.Option(None, "--header", "-H", help="Header(s) to inject, e.g. -H 'Authorization: Bearer token'"),
     profile: Profile = typer.Option(Profile.normal, "--profile", "-p", help="Scan profile: quick | normal | full"),
@@ -60,6 +60,18 @@ def scan(
     elif profile == Profile.full:
         skip_discovery = False
         no_llm = False
+        if wordlist is None:
+            # pick largest available wordlist for full profile
+            from tracectf.modules.discovery import DEFAULT_WORDLIST_CANDIDATES
+            full_candidates = [
+                "/usr/share/seclists/Discovery/Web-Content/raft-large-words.txt",
+                "/usr/share/seclists/Discovery/Web-Content/directory-list-2.3-big.txt",
+            ] + DEFAULT_WORDLIST_CANDIDATES
+            for candidate in full_candidates:
+                import os
+                if os.path.exists(candidate):
+                    wordlist = candidate
+                    break
 
     results = {"url": url, "fingerprint": {}, "discovery": [], "js_analysis": [], "summary": ""}
 
@@ -67,7 +79,7 @@ def scan(
 
         # stage 1: fingerprint
         task = progress.add_task("Fingerprinting target...", total=None)
-        fp = fingerprint(url, cookies=cookies, headers=headers)
+        fp = fingerprint(url, cookies=cookies, headers=headers, delay=delay)
         results["fingerprint"] = fp
         progress.remove_task(task)
 
@@ -80,7 +92,7 @@ def scan(
 
         # stage 3: js analysis
         task = progress.add_task("Analyzing JavaScript...", total=None)
-        js_findings = analyze_js(url, fp.get("scripts", []), cookies=cookies, headers=headers)
+        js_findings = analyze_js(url, fp.get("scripts", []), cookies=cookies, headers=headers, delay=delay)
         results["js_analysis"] = js_findings
         progress.remove_task(task)
 
