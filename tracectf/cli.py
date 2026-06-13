@@ -1,5 +1,6 @@
 import typer
 import json
+import os
 from enum import Enum
 from rich.console import Console
 from rich.panel import Panel
@@ -68,7 +69,6 @@ def main(
                 "/usr/share/seclists/Discovery/Web-Content/directory-list-2.3-big.txt",
             ] + DEFAULT_WORDLIST_CANDIDATES
             for candidate in full_candidates:
-                import os
                 if os.path.exists(candidate):
                     wordlist = candidate
                     break
