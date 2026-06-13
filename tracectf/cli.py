@@ -11,7 +11,7 @@ from tracectf.modules.js_analysis import analyze_js
 from tracectf.modules.summarize import summarize
 from tracectf.utils.output import print_section, print_finding
 
-app = typer.Typer(help="Trace — CTF web recon pipeline")
+app = typer.Typer(help="Trace — CTF web recon pipeline", no_args_is_help=True)
 console = Console()
 
 
@@ -22,7 +22,7 @@ class Profile(str, Enum):
 
 
 @app.command()
-def scan(
+def main(
     url: str = typer.Argument(..., help="Target URL to scan"),
     output_json: bool = typer.Option(False, "--json", help="Output results as JSON"),
     skip_discovery: bool = typer.Option(False, "--no-discovery", help="Skip dir/endpoint discovery"),
